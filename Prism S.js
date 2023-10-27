@@ -1,26 +1,34 @@
-export function Name() { return "Prism S"; } 
+export function Name() { return "Prism S"; }
 export function VendorId() { return 0x16D0; }
 export function ProductId() { return 0x1294; }
-export function Publisher() { return "PrismRGB"; } 
+export function Publisher() { return "PrismRGB"; }
 export function Size() { return [0, 0]; }
 export function Type() { return "Hid"; }
+export function SubdeviceController(){ return true; }
 export function DefaultPosition(){return [120, 80];}
 export function DefaultScale(){return 8.0;}
-
+/* global
+shutdownColor:readonly
+LightingMode:readonly
+forcedColor:readonly
+GPUCable:readonly
+ATXCable:readonly
+GPUCableType:readonly
+*/
 export function ControllableParameters() {
 	return [
 		{"property":"ATXCable", "group":"lighting", "label":"24 Pin Cable Connected", "type":"boolean", "default": "true"},
 		{"property":"GPUCable", "group":"lighting", "label":"GPU Cable Connected", "type":"boolean", "default": "true"},
 		{"property":"GPUCableType", "group":"lighting", "label":"GPU Cable Type", "type":"combobox", "values":["Dual 8 Pin", "Triple 8 Pin"], "default":"Triple 8 Pin"},
-		{"property":"shutdownColor", "group":"Lighting", "label":"Shutdown Color", "min":"0", "max":"360", "type":"color", "default":"000000"},
+		{"property":"shutdownColor", "group":"Lighting", "label":"Shutdown Color", "min":"0", "max":"360", "type":"color", "default":"#000000"},
 		{"property":"LightingMode", "group":"Lighting", "label":"Lighting Mode", "type":"combobox", "values":["Canvas", "Forced"], "default":"Canvas"},
-		{"property":"forcedColor", "group":"Lighting", "label":"Forced Color", "min":"0", "max":"360", "type":"color", "default":"009bde"}
+		{"property":"forcedColor", "group":"Lighting", "label":"Forced Color", "min":"0", "max":"360", "type":"color", "default":"#009bde"}
 	];
 }
 
 let channelReload = false;
-const MaxLedsInPacket = 21;
-let brightness = .50
+/* const MaxLedsInPacket = 21; */
+let brightness = .50;
 
 export function onGPUCableChanged() {
 	addChannels();
@@ -50,8 +58,7 @@ function addChannels() {
 			device.setSubdeviceName("Dual8PinStrimer", `Dual 8 Pin Strimer`);
 			device.setSubdeviceSize("Dual8PinStrimer", 27, 4);
 			device.setSubdeviceLeds("Dual8PinStrimer", vDual8PinLedNames, vDual8PinLedPositions);
-		} 
-		else if(GPUCableType === "Triple 8 Pin") {
+		} else if(GPUCableType === "Triple 8 Pin") {
 			device.createSubdevice("Triple8PinStrimer");
 			device.setSubdeviceName("Triple8PinStrimer", `Triple 8 Pin Strimer`);
 			device.setSubdeviceSize("Triple8PinStrimer", 27, 6);
@@ -65,81 +72,87 @@ function addChannels() {
 		device.setSubdeviceSize("24PinStrimer", 20, 6);
 		device.setSubdeviceLeds("24PinStrimer", v24PinLedNames, v24PinLedPositions);
 	}
+
 	Save_Settings();
 }
 
 export function Render() {
 	let SendData = [];
+
 	if(!channelReload) {
 		if(ATXCable) {
 			let RGBData = getMoboColors();
+
 			for(let CurrPacket = 0; CurrPacket < 6; CurrPacket++) {
-				if(CurrPacket == 5) {
+				if(CurrPacket === 5) {
 					CurrPacket = 15;
 				}
 				let packet = [CurrPacket];
+
 				if(RGBData.length >= 63) {
 					packet.push(...RGBData.splice(0, 63));
-				}	
-				else {
+				} else {
 					packet.push(...RGBData.splice(0, RGBData.length));
-				}	
+				}
+
 				SendData.push(...packet.splice(0, packet.length));
 			}
 		}
 
 		if(GPUCable) {
-			if(SendData.length == 0) {
+			if(SendData.length === 0) {
 				let packet = new Array(46).fill(0);
 				SendData.push(...packet.splice(0, packet.length));
 				SendData[0] = 0x05;
-			}
-			else {
+			} else {
 				SendData[320] = 0x05;
-			}	
+			}
+
 			if(GPUCableType === "Dual 8 Pin") {
 				let RGBData = getDualGPUColors();
 				SendData.push(...RGBData.splice(0, 18));
+
 				for(let CurrPacket = 6; CurrPacket < 11; CurrPacket++) {
-					if(CurrPacket == 10) {
+					if(CurrPacket === 10) {
 						CurrPacket = 20;
 					}
 					let packet = [CurrPacket];
+
 					if(RGBData.length >= 63) {
 						packet.push(...RGBData.splice(0, 63));
-					}
-					else {
+					} else {
 						packet.push(...RGBData.splice(0, RGBData.length));
-					}	
+					}
+
 					SendData.push(...packet.splice(0, packet.length));
-				}	
-			}				
-			else if(GPUCableType === "Triple 8 Pin") {
+				}
+			} else if(GPUCableType === "Triple 8 Pin") {
 				let RGBData = getTripleGPUColors();
 				SendData.push(...RGBData.splice(0, 18));
+
 				for(let CurrPacket = 6; CurrPacket < 14; CurrPacket++) {
 					let packet = [CurrPacket];
+
 					if(RGBData.length >= 63) {
 						packet.push(...RGBData.splice(0, 63));
-					}
-					else {
+					} else {
 						packet.push(...RGBData.splice(0, RGBData.length));
-					}	
+					}
+
 					SendData.push(...packet.splice(0, packet.length));
 				}
 			}
 
 		}
 
-		let NumPackets = Math.ceil(SendData.length / 64); 
- 	
+		let NumPackets = Math.ceil(SendData.length / 64);
+
 		for(let CurrPacket = 0; CurrPacket < NumPackets; CurrPacket++) {
 			let packet = [0x00];
 			packet.push(...SendData.splice(0, 64));
 			device.write(packet, 65);
 		}
-	}	
-	else {
+	} else {
 		channelReload = false;
 	}
 }
@@ -151,26 +164,26 @@ export function Shutdown() {
 function getDeviceColors(deviceType, shutdown = false) {
 	const RGBData = [];
 	let positions;
-  
+
 	switch (deviceType) {
-		case "24PinStrimer":
-			positions = v24PinLedPositions;
-			break;
+	case "24PinStrimer":
+		positions = v24PinLedPositions;
+		break;
 	  case "Dual8PinStrimer":
-			positions = vDual8PinLedPositions;
-			break;
+		positions = vDual8PinLedPositions;
+		break;
 	  case "Triple8PinStrimer":
-			positions = vTriple8PinLedPositions;
-			break;
+		positions = vTriple8PinLedPositions;
+		break;
 	  default:
 		return RGBData;
 	}
-  
+
 	for (let iIdx = 0; iIdx < positions.length; iIdx++) {
 		const iPxX = positions[iIdx][0];
 		const iPxY = positions[iIdx][1];
 		let color;
-  
+
 		if (shutdown) {
 			color = hexToRgb(shutdownColor);
 	  	} else if (LightingMode === "Forced") {
@@ -178,15 +191,16 @@ function getDeviceColors(deviceType, shutdown = false) {
 	  	} else {
 			color = device.subdeviceColor(deviceType, iPxX, iPxY);
 	  	}
-  
+
 		const iLedIdx = iIdx * 3;
 	  	RGBData[iLedIdx] = color[0] * brightness;
 	  	RGBData[iLedIdx + 1] = color[1] * brightness;
 	  	RGBData[iLedIdx + 2] = color[2] * brightness;
 	}
+
 	return RGBData;
 }
-  
+
 function getMoboColors(shutdown = false) {
 	return getDeviceColors("24PinStrimer", shutdown);
 }
@@ -202,11 +216,13 @@ function getTripleGPUColors(shutdown = false) {
 function Save_Settings() {
 	let Mos = 0;
 	let RGBData = [];
-	RGBData = device.createColorArray(shutdownColor, 1, "Inline");	
+	RGBData = device.createColorArray(shutdownColor, 1, "Inline");
+
 	if(GPUCableType === "Dual 8 Pin") {
 		Mos = 1;
 	}
-	device.write([0x00,0xfe,0x01,RGBData[0],RGBData[1],RGBData[2],Mos], 65);
+
+	device.write([0x00, 0xfe, 0x01, RGBData[0], RGBData[1], RGBData[2], Mos], 65);
 	device.pause(50);
 }
 
