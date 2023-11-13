@@ -368,5 +368,5 @@ const v24PinLedPositions = [
 ];
 
 export function ImageUrl() {
-	return "https://i.imgur.com/Y1wzRO7.png";
+	return "https://raw.githubusercontent.com/PrismRGB/PrismRGB-Plugins/main/Prism_S/Prism%20S.png";
 }
