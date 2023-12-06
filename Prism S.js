@@ -2,7 +2,7 @@ export function Name() { return "Prism S"; }
 export function VendorId() { return 0x16D0; }
 export function ProductId() { return 0x1294; }
 export function Publisher() { return "PrismRGB"; }
-export function Size() { return [0, 0]; }
+export function Size() { return [1, 1]; }
 export function Type() { return "Hid"; }
 export function SubdeviceController(){ return true; }
 export function DefaultPosition(){return [120, 80];}
