@@ -126,3 +126,8 @@ function SendChannel(Channel, overrideColor) {
 export function Validate(endpoint) {
 	return endpoint.interface === 2;
 }
+
+export function ImageUrl() {
+	return "https://raw.githubusercontent.com/PrismRGB/PrismRGB-Plugins/main/Prism_Auroa/Aurora.png";
+}
+
