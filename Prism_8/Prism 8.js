@@ -240,5 +240,5 @@ export function Validate(endpoint)
 }
 
 export function ImageUrl() {
-	return "https://i.imgur.com/JQyaXZx.png";
+	return "https://raw.githubusercontent.com/PrismRGB/PrismRGB-Plugins/main/Prism_8/Prism%208.png";
 }
