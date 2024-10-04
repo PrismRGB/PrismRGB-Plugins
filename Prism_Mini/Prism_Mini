@@ -1,6 +1,6 @@
 export function Name() { return "Prism Mini"; }
-export function VendorId() { return ; }
-export function ProductId() { return ; }
+export function VendorId() { return 0x16d0; }
+export function ProductId() { return 0x0001; }
 export function Publisher() { return "PrismRGB"; }
 export function Size() { return [1, 1]; }
 export function DefaultPosition(){ return [0, 0]; }
