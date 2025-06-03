@@ -1,6 +1,6 @@
-export function Name() { return "Prism Mini"; }
+export function Name() { return "Prism Test"; }
 export function VendorId() { return 0x16d0; }
-export function ProductId() { return 0x0001; }
+export function ProductId() { return 0x1407; }
 export function Publisher() { return "PrismRGB"; }
 export function Size() { return [1, 1]; }
 export function DefaultPosition(){ return [0, 0]; }
@@ -19,6 +19,7 @@ HWL_effectSpeed:readonly
 HWL_color:readonly
 HWL_brightness:readonly
 ColorCompression_enable:readonly
+LowPowerSaver_enable:readonly
 FPS:readonly
 */
 export function ControllableParameters() {
@@ -26,19 +27,21 @@ export function ControllableParameters() {
 		{"property":"shutdownColor", "group":"lighting", "label":"Shutdown Color", "min":"0", "max":"360", "type":"color", "default":"#000000"},
 		{"property":"LightingMode", "group":"lighting", "label":"Lighting Mode", "type":"combobox", "values":["Canvas", "Forced"], "default":"Canvas"},
 		{"property":"forcedColor", "group":"lighting", "label":"Forced Color", "min":"0", "max":"360", "type":"color", "default":"#FF0000"},
-		{"property":"ColorCompression_enable", "group":"", "label":"Enable Color Compression (reduces color spectrum & raises frame rate)", "type":"boolean", "default":"false"},
-		{"property":"HWL_enable", "group":"", "label":"Enable Hardware Lighting", "type":"boolean", "default":"false"},
-		{"property":"HWL_effectMode", "group":"", "label":"Hardware Lighting Effect", "type":"combobox", "values":["Rainbow Wave", "Rainbow Cycle", "Solid Color", "Breathing Color"], "default":"Solid Color"},
+		{"property":"LowPowerSaver_enable", "group":"", "label":"Enable Low Power Saver", "type":"boolean", "default":"true", description:"Limits brightness to reduce power consumption. If you are experiecing flickering or shutting down then enable this setting"},
+		{"property":"FPS", "group":"", "label":"FPS Boost", "type":"boolean", "default": "false", description: "Toggling this may increase framerate"},
+		{"property":"HWL_enable", "group":"", "label":"Enable Hardware Lighting", "type":"boolean", "default":"false", description:"Changes are applied after 3 seconds. Be sure to edit firmware lighting while Prism Mini is enabled"},
 		{"property":"HWL_return", "group":"", "label":"Enable returning to Hardware Lighting when not controlled by SignalRGB", "type":"boolean", "default":"false"},
-		{"property":"HWL_returnafter", "group":"", "label":"Return to Hardware Lighting after selected amount seconds", "step":"1", "type":"number", "min":"1", "max":"10", "default":"3"},
+		{"property":"HWL_effectMode", "group":"", "label":"Hardware Lighting Effect", "type":"combobox", "values":["Rainbow Wave", "Rainbow Cycle", "Solid Color", "Breathing Color"], "default":"Rainbow Wave"},
+		{"property":"HWL_returnafter", "group":"", "label":"Return to Hardware Lighting after selected amount seconds", "step":"1", "type":"number", "min":"1", "max":"60", "default":"5"},
 		{"property":"HWL_effectSpeed", "group":"", "label":"Speed of Hardware Lighting Effect", "step":"1", "type":"number", "min":"1", "max":"20", "default":"6"},
 		{"property":"HWL_color", "group":"", "label":"Select color for Solid & Breathing Effect", "min":"0", "max":"360", "type":"color", "default":"#800080"},
-		{"property":"HWL_brightness", "group":"", "label":"Hardware Lighting Brightness", "step":"1", "type":"number", "min":"10", "max":"100", "default":"50"},
-		{"property":"FPS", "group":"", "label":"FPS Boost", "type":"boolean", "default": "false", description: "May increase framerate"},
+		{"property":"HWL_brightness", "group":"", "label":"Hardware Lighting Brightness", "step":"1", "type":"number", "min":"10", "max":"255", "default":"127"},
+		{"property":"ColorCompression_enable", "group":"", "label":"Enable Color Compression", "type":"boolean", "default":"false", description:"May reduce color spectrum and increase framerate"},
+		{"property":"StatusLED_enable", "group":"", "label":"Enable Onboard Status LED", "type":"boolean", "default":"false", description:"Some models may have onboard lighting, otherwise, ignore this setting"},
 
 	];
 }
-const DeviceMaxLedLimit = 120;
+const DeviceMaxLedLimit = 128;
 const ChannelArray =
 [
 	["Channel 1", DeviceMaxLedLimit],
@@ -69,22 +72,26 @@ export function LedPositions() {
 	return vKeyPositions;
 }
 
-export function onFPSChanged() {
-	device.setFrameRateTarget(FPS ? 60 : 33);
-	FPS && device.log("Going into Exhilaratingly Fast and Infinitely Whimsical Mode!");
-}
-
 export function Initialize() {
-	onFPSChanged();
 	SetupChannels();
 	requestFirmwareVersion();
+	onFPSChanged();
+
 }
+
+export function onFPSChanged() {
+	device.setFrameRateTarget(FPS ? 60 : 33);
+	if(FPS) {
+		device.log("Going into Exhilaratingly Fast and Infinitely Whimsical Mode!");
+	}
+}
+
 
 function compareFirmwareVersion() {
 	const firmwarePacket = device.read([0x00], 4, 10);
 	const FirmwareVersion = firmwarePacket[1] + "." + firmwarePacket[2] + "." + firmwarePacket[3];
-	// device.log("Firmware version: " + FirmwareVersion);
-	// device.log("Plugin version:   " + PluginVersion);
+	//device.log("Firmware: " + FirmwareVersion);
+	//device.log("Plugion:   " + PluginVersion);
 
 	if(FirmwareVersion !== PluginVersion) {
 		device.log("Firmware <-> Plugin version mismatch! Make sure to use matching versions!");
@@ -167,18 +174,22 @@ function SendChannel(Channel, overrideColor) {
 		const data = ColorCompression_enable ? compressedRGB.slice(startIndex, endIndex) : RGBData.slice(startIndex, endIndex);
 		packet.push(...data);
 	
-		const maxTotalValue = 175; // Adjust as needed
-	
-		for (let i = 5; i < packet.length; i += 3) {
-			let totalValue = packet[i] + packet[i + 1] + packet[i + 2];
-			if (totalValue > maxTotalValue) {
-				const scaleFactor = maxTotalValue / totalValue;
-				packet[i] *= scaleFactor;
-				packet[i + 1] *= scaleFactor;
-				packet[i + 2] *= scaleFactor;
-				totalValue = maxTotalValue; 
+		// Apply low power saver scale factor only when enabled
+		if (LowPowerSaver_enable) {
+			const maxTotalValue = 175; // Adjust as needed
+		
+			for (let i = 5; i < packet.length; i += 3) {
+				let totalValue = packet[i] + packet[i + 1] + packet[i + 2];
+				if (totalValue > maxTotalValue) {
+					const scaleFactor = maxTotalValue / totalValue;
+					packet[i] *= scaleFactor;
+					packet[i + 1] *= scaleFactor;
+					packet[i + 2] *= scaleFactor;
+					totalValue = maxTotalValue; 
+				}
 			}
 		}
+		
 		device.write(packet, 65);
 	}
 	
@@ -197,6 +208,10 @@ function hexToRgb(hex) {
 
 export function onColorCompression_enableChanged(){ HWL_setting_updated(); }
 export function onStatusLED_enableChanged(){ HWL_setting_updated(); }
+export function onLowPowerSaver_enableChanged(){ 
+	// Low Power Saver doesn't need to trigger HWL update as it's handled in software
+	device.log("Low Power Saver " + (LowPowerSaver_enable ? "enabled" : "disabled"));
+}
 export function onHWL_enableChanged(){ HWL_setting_updated(); }
 export function onHWL_effectModeChanged(){ HWL_setting_updated(); }
 export function onHWL_returnChanged(){ HWL_setting_updated(); }
@@ -233,5 +248,5 @@ export function Validate(endpoint) {
 }
 
 export function ImageUrl() {
-	return "https://raw.githubusercontent.com/PrismRGB/PrismRGB-Plugins/refs/heads/main/Prism_mini/Prism%20Mini.png"
+	return "https://raw.githubusercontent.com/PrismRGB/PrismRGB-Plugins/refs/heads/main/Prism_Mini/Prism%20Mini.png"
 }
