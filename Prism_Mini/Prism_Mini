@@ -1,4 +1,4 @@
-export function Name() { return "Prism Test"; }
+export function Name() { return "Prism Mini"; }
 export function VendorId() { return 0x16d0; }
 export function ProductId() { return 0x1407; }
 export function Publisher() { return "PrismRGB"; }
@@ -85,7 +85,6 @@ export function onFPSChanged() {
 		device.log("Going into Exhilaratingly Fast and Infinitely Whimsical Mode!");
 	}
 }
-
 
 function compareFirmwareVersion() {
 	const firmwarePacket = device.read([0x00], 4, 10);
@@ -176,7 +175,7 @@ function SendChannel(Channel, overrideColor) {
 	
 		// Apply low power saver scale factor only when enabled
 		if (LowPowerSaver_enable) {
-			const maxTotalValue = 175; // Adjust as needed
+			const maxTotalValue = 175; // Optimized for typical ws2812 strips/matrixes
 		
 			for (let i = 5; i < packet.length; i += 3) {
 				let totalValue = packet[i] + packet[i + 1] + packet[i + 2];
@@ -209,7 +208,6 @@ function hexToRgb(hex) {
 export function onColorCompression_enableChanged(){ HWL_setting_updated(); }
 export function onStatusLED_enableChanged(){ HWL_setting_updated(); }
 export function onLowPowerSaver_enableChanged(){ 
-	// Low Power Saver doesn't need to trigger HWL update as it's handled in software
 	device.log("Low Power Saver " + (LowPowerSaver_enable ? "enabled" : "disabled"));
 }
 export function onHWL_enableChanged(){ HWL_setting_updated(); }
